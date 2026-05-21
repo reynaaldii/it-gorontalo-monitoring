@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Gorontalo - Real-Time Fuel Distribution Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            biosolar: '#D97706', // Amber
+                            pertalite: '#10B981', // Emerald
+                            pertamax: '#1D4ED8', // Blue
+                            dexlite: '#F97316', // Orange
+                            pertadex: '#DC2626', // Red
+                            darkBg: '#0F172A',
+                            darkCard: '#1E293B'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col">
+
+    <!-- Navigation Bar -->
+    <nav class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand Logo & Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-red-600 rounded-lg text-white animate-pulse">
+                        <i class="fa-solid fa-gas-pump text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white">IT GORONTALO</h1>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wider uppercase">BBM Distribution Control Room & Cloud Hub</p>
+                    </div>
+                </div>
+
+                <!-- Action Controls (Theme, Input, Real-time Status) -->
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    <!-- Cloud Sync Indicator (Rule 3 compliant visual status) -->
+                    <div class="hidden lg:flex items-center space-x-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-xs">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                        <span id="db-sync-status" class="text-slate-600 dark:text-slate-300 font-semibold">MENYAMBUNGKAN CLOUD...</span>
+                    </div>
+
+                    <!-- Theme Toggle Switch -->
+                    <button id="theme-toggle" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="Toggle Tema">
+                        <i class="fa-solid fa-moon dark:hidden text-slate-600"></i>
+                        <i class="fa-solid fa-sun hidden dark:block text-amber-400"></i>
+                    </button>
+
+                    <!-- Add Distribution Data Button -->
+                    <button onclick="openModal('input-modal')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-semibold shadow-lg shadow-red-600/20 transition flex items-center space-x-1">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span class="hidden sm:inline">Input Distribusi (Shift)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full space-y-6">
+
+        <!-- Welcome Banner and Live Counter -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden border border-slate-800">
+                <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-y-6 translate-x-6">
+                    <i class="fa-solid fa-cloud-arrow-up text-9xl"></i>
+                </div>
+                <div class="relative z-10">
+                    <span class="bg-emerald-600 text-white font-bold text-[10px] tracking-widest uppercase px-2.5 py-1 rounded-full">SINKRONISASI AKTIF & AMAN</span>
+                    <h2 class="text-2xl font-extrabold mt-3 tracking-tight">Sistem Monitoring Terproteksi & Multi-Shift</h2>
+                    <p class="text-slate-300 text-sm mt-2 max-w-xl">
+                        Aplikasi ini telah terhubung ke cloud database. Data aman dari risiko laptop mati mendadak. Gunakan fitur analisis shift di bawah untuk mengevaluasi efisiensi penyaluran **Shift 1** & **Shift 2**.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Current Shift & Stock Alert Indicator Card -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-bold text-slate-900 dark:text-white text-sm">Status Penyaluran Real-Time</h3>
+                        <span class="text-xs text-slate-400 font-medium" id="live-clock">--:--:-- WITA</span>
+                    </div>
+                    <div class="mt-4 space-y-2.5">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500" id="live-date-label">Tanggal: Memuat...</span>
+                            <span class="font-bold text-slate-800 dark:text-slate-200" id="today-scheduled">-- KL</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500">Sudah Disalurkan (Real)</span>
+                            <span class="font-bold text-emerald-500" id="today-dispatched">-- KL</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                            <div id="dispatch-progress-bar" class="bg-emerald-500 h-2 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 border-t border-slate-100 dark:border-slate-700 pt-3 flex items-center space-x-2 text-[11px] text-amber-500 font-semibold">
+                    <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+                    <span id="live-system-advice">Sistem sedang memproses algoritma mitigasi...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STRESS-TEST ENGINE: "WHAT-IF" SIMULATOR (Melihat masalah sebelum terjadi) -->
+        <div class="bg-gradient-to-br from-red-500/10 via-slate-50 to-white dark:from-red-950/20 dark:via-slate-800 dark:to-slate-800/80 p-6 rounded-2xl border border-red-500/20 dark:border-red-900/40 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="bg-red-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">Alat Simulasi</span>
+                        <h3 class="font-extrabold text-base text-slate-900 dark:text-white">Uji Stress Penyaluran (What-If Simulator)</h3>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Simulasikan lonjakan konsumsi kendaraan di Gorontalo untuk memitigasi potensi kehabisan stok pompa sebelum penyaluran SPBU.</p>
+                </div>
+                <div class="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center space-x-3 shrink-0">
+                    <span class="text-xs font-semibold text-slate-500">Faktor Lonjakan:</span>
+                    <span id="slider-value-display" class="text-lg font-black text-red-600 dark:text-red-400">+0%</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Slider Control -->
+                <div class="lg:col-span-1 space-y-4">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">Sesuaikan Beban Konsumsi SPBU:</label>
+                    <input type="range" id="stress-slider" min="0" max="100" value="0" step="5" oninput="handleStressSlider(this.value)" class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-red-600">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
+                        <span>Normal (0%)</span>
+                        <span>Skenario Liburan (+50%)</span>
+                        <span>Ekstrem (+100%)</span>
+                    </div>
+                    <div class="p-3.5 bg-slate-100 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        <i class="fa-solid fa-info-circle text-red-500 mr-1.5"></i>Geser slider untuk melihat bagaimana peningkatan distribusi berdampak langsung pada batas pengisian harian di IT Gorontalo secara dinamis.
+                    </div>
+                </div>
+
+                <!-- Live Risk Analysis Results -->
+                <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Status Kapasitas Pompa -->
+                    <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Beban Puncak Penyaluran</span>
+                            <div class="flex justify-between items-baseline mb-2">
+                                <span class="text-2xl font-black text-slate-900 dark:text-white" id="stress-peak-volume">-- KL</span>
+                                <span class="text-xs font-semibold text-red-500" id="stress-peak-percentage">+0%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                                <div id="stress-capacity-bar" class="bg-red-600 h-2.5 rounded-full transition-all duration-300" style="width: 35%"></div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] text-slate-400 mt-2 block" id="stress-capacity-text">Kapasitas aman di bawah batas pengisian harian.</span>
+                    </div>
+
+                    <!-- Early Warning Status Box -->
+                    <div id="risk-alert-box" class="bg-emerald-500/10 dark:bg-emerald-950/20 p-4 rounded-xl border border-emerald-500/30 dark:border-emerald-900/30 flex flex-col justify-between transition-colors duration-300">
+                        <div class="flex items-start space-x-3">
+                            <span id="risk-icon" class="p-2 bg-emerald-500 text-white rounded-lg text-sm shrink-0">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </span>
+                            <div class="text-xs">
+                                <h4 id="risk-title" class="font-extrabold text-emerald-800 dark:text-emerald-400">Semua Jalur Aman</h4>
+                                <p id="risk-desc" class="text-emerald-600 dark:text-emerald-500/80 mt-1 leading-normal">Dengan volume data saat ini, sistem tidak memprediksi adanya risiko kekosongan stock atau antrean overload armada.</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-500 mt-3" id="risk-action-notice">SITUASI OPERASIONAL: NORMAL</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fuel Products KPI Cards Grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <!-- Card 1: BIOSOLAR B40 -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border-l-4 border-amber-500 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
+                <div class="flex justify-between items-center text-slate-400 dark:text-slate-500">
+                    <span class="text-xs font-bold text-amber-600 dark:text-amber-500 tracking-wider">BIOSOLAR B40</span>
+                    <span id="badge-trend-biosolarb40" class="text-[10px] font-bold flex items-center space-x-1">
+                        <i class="fa-solid fa-minus"></i> <span>0%</span>
+                    </span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-xs text-slate-400 block font-medium">Distribusi Hari Ini</span>
+                    <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white" id="val-b40">0 KL</span>
+                </div>
+                <div class="mt-2 text-[10px] text-slate-400 dark:text-slate-500 flex justify-between">
+                    <span>YTD Akumulasi:</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300" id="ytd-b40">0 KL</span>
+                </div>
+            </div>
+
+            <!-- Card 2: PERTALITE -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border-l-4 border-emerald-500 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
+                <div class="flex justify-between items-center text-slate-400 dark:text-slate-500">
+                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-500 tracking-wider">PERTALITE</span>
+                    <span id="badge-trend-pertalite" class="text-[10px] font-bold flex items-center space-x-1">
+                        <i class="fa-solid fa-minus"></i> <span>0%</span>
+                    </span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-xs text-slate-400 block font-medium">Distribusi Hari Ini</span>
+                    <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white" id="val-pertalite">0 KL</span>
+                </div>
+                <div class="mt-2 text-[10px] text-slate-400 dark:text-slate-500 flex justify-between">
+                    <span>YTD Akumulasi:</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300" id="ytd-pertalite">0 KL</span>
+                </div>
+            </div>
+
+            <!-- Card 3: PERTAMAX -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border-l-4 border-blue-600 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
+                <div class="flex justify-between items-center text-slate-400 dark:text-slate-500">
+                    <span class="text-xs font-bold text-blue-600 dark:text-blue-500 tracking-wider">PERTAMAX</span>
+                    <span id="badge-trend-pertamax" class="text-[10px] font-bold flex items-center space-x-1">
+                        <i class="fa-solid fa-minus"></i> <span>0%</span>
+                    </span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-xs text-slate-400 block font-medium">Distribusi Hari Ini</span>
+                    <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white" id="val-pertamax">0 KL</span>
+                </div>
+                <div class="mt-2 text-[10px] text-slate-400 dark:text-slate-500 flex justify-between">
+                    <span>YTD Akumulasi:</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300" id="ytd-pertamax">0 KL</span>
+                </div>
+            </div>
+
+            <!-- Card 4: DEXLITE -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border-l-4 border-orange-500 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
+                <div class="flex justify-between items-center text-slate-400 dark:text-slate-500">
+                    <span class="text-xs font-bold text-orange-600 dark:text-orange-500 tracking-wider">DEXLITE</span>
+                    <span id="badge-trend-dexlite" class="text-[10px] font-bold flex items-center space-x-1">
+                        <i class="fa-solid fa-minus"></i> <span>0%</span>
+                    </span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-xs text-slate-400 block font-medium">Distribusi Hari Ini</span>
+                    <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white" id="val-dexlite">0 KL</span>
+                </div>
+                <div class="mt-2 text-[10px] text-slate-400 dark:text-slate-500 flex justify-between">
+                    <span>YTD Akumulasi:</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300" id="ytd-dexlite">0 KL</span>
+                </div>
+            </div>
+
+            <!-- Card 5: PERTADEX -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border-l-4 border-red-600 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition">
+                <div class="flex justify-between items-center text-slate-400 dark:text-slate-500">
+                    <span class="text-xs font-bold text-red-600 dark:text-red-500 tracking-wider">PERTADEX</span>
+                    <span id="badge-trend-pertadex" class="text-[10px] font-bold flex items-center space-x-1">
+                        <i class="fa-solid fa-minus"></i> <span>0%</span>
+                    </span>
+                </div>
+                <div class="mt-2">
+                    <span class="text-xs text-slate-400 block font-medium">Distribusi Hari Ini</span>
+                    <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white" id="val-pertadex">0 KL</span>
+                </div>
+                <div class="mt-2 text-[10px] text-slate-400 dark:text-slate-500 flex justify-between">
+                    <span>YTD Akumulasi:</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300" id="ytd-pertadex">0 KL</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics & Trends Section -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <!-- Header Tab Selector & Filter Panel -->
+            <div class="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/50">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="switchTrendTab('daily')" id="tab-daily" class="trend-tab active px-4 py-2 rounded-lg text-sm font-semibold border transition bg-red-600 text-white border-red-600">
+                        <i class="fa-solid fa-calendar-day mr-1.5"></i>Tren Harian
+                    </button>
+                    <button onclick="switchTrendTab('weekly')" id="tab-weekly" class="trend-tab px-4 py-2 rounded-lg text-sm font-semibold border transition text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <i class="fa-solid fa-calendar-week mr-1.5"></i>Tren Mingguan (Hari Sibuk)
+                    </button>
+                    <button onclick="switchTrendTab('monthly')" id="tab-monthly" class="trend-tab px-4 py-2 rounded-lg text-sm font-semibold border transition text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <i class="fa-solid fa-calendar-days mr-1.5"></i>Tren Bulanan
+                    </button>
+                    <button onclick="switchTrendTab('quarterly')" id="tab-quarterly" class="trend-tab px-4 py-2 rounded-lg text-sm font-semibold border transition text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <i class="fa-solid fa-chart-pie mr-1.5"></i>Tren Triwulanan
+                    </button>
+                    <button onclick="switchTrendTab('accumulated')" id="tab-accumulated" class="trend-tab px-4 py-2 rounded-lg text-sm font-semibold border transition text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <i class="fa-solid fa-arrow-trend-up mr-1.5"></i>Akumulasi YTD
+                    </button>
+                </div>
+
+                <!-- Dual Filter Controls (Product & Shift Filters) -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Produk:</label>
+                        <select id="product-filter" onchange="updateAllCharts()" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            <option value="ALL">Semua Produk BBM</option>
+                            <option value="BIOSOLARB40">BIOSOLAR B40</option>
+                            <option value="PERTALITE">PERTALITE</option>
+                            <option value="PERTAMAX">PERTAMAX</option>
+                            <option value="DEXLITE">DEXLITE</option>
+                            <option value="PERTADEX">PERTADEX</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Analisis Shift:</label>
+                        <select id="shift-filter" onchange="updateAllCharts()" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            <option value="COMBINED">Gabungan (Shift 1 + 2)</option>
+                            <option value="SHIFT1">Hanya Shift 1</option>
+                            <option value="SHIFT2">Hanya Shift 2</option>
+                            <option value="COMPARE">Bandingkan Shift (S1 vs S2)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Canvas Container -->
+            <div class="p-6">
+                <!-- Chart description header -->
+                <div class="mb-4">
+                    <h4 class="text-md font-bold text-slate-800 dark:text-white" id="chart-title">Visualisasi Tren Harian Distribusi BBM</h4>
+                    <p class="text-xs text-slate-400 dark:text-slate-500" id="chart-subtitle">Menampilkan rincian volume penyaluran harian untuk setiap produk terdaftar (KL).</p>
+                </div>
+                <div class="relative h-[400px] w-full">
+                    <canvas id="distributionTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Crowd Warning & Stock Advisor (The Evaluation Center for Stock Prep) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Stock Safety Optimizer & AI Peak Predictor -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center space-x-2 text-red-600 dark:text-red-500">
+                            <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                            <h3 class="font-extrabold text-base text-slate-900 dark:text-white">Analisis Keramaian & Rekomendasi Stok Maksimal</h3>
+                        </div>
+                        <div class="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>TERANALISIS OTOMATIS</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                        Sistem analitik engine mengkalkulasi riwayat penyaluran secara mandiri untuk mengevaluasi hari, minggu, atau bulan mana saja yang merupakan masa-masa rawan penumpukan kendaraan (*crowded*) di SPBU wilayah Gorontalo.
+                    </p>
+
+                    <!-- Dynamically Generated Recommendations List -->
+                    <div id="advisor-list" class="space-y-3">
+                        <!-- Will be populated dynamically by script -->
+                    </div>
+                </div>
+
+                <!-- Live Indicator of Security Stock Calculator -->
+                <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700 grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 block font-semibold uppercase">Hari Paling Padat</span>
+                        <span id="peak-day-label" class="text-sm font-bold text-red-500">--</span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 block font-semibold uppercase">Bulan Paling Padat</span>
+                        <span id="peak-month-label" class="text-sm font-bold text-red-500">--</span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 block font-semibold uppercase">Saran Buffer Stock</span>
+                        <span id="buffer-stock-label" class="text-sm font-bold text-emerald-500">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini Summary & Product Share Pie -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-slate-900 dark:text-white text-sm mb-1">Rasio Pembagian Produk BBM</h3>
+                    <p class="text-[11px] text-slate-400 mb-4">Proporsi kontribusi volume produk terhadap total suplai tahun berjalan.</p>
+                    <div class="relative h-[180px] w-full flex items-center justify-center">
+                        <canvas id="productShareChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Info legend detailing the primary driver of consumption -->
+                <div class="mt-4 text-xs text-slate-500 dark:text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-700">
+                    <div class="flex justify-between mb-1">
+                        <span>Konsumsi Tertinggi:</span>
+                        <span class="font-bold text-slate-800 dark:text-white" id="highest-share-prod">--</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400">Gorontalo didominasi kendaraan pribadi dan transportasi publik yang menuntut ketersediaan stok terus stabil.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table (History & Logs) -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h3 class="font-bold text-slate-900 dark:text-white text-base">Log Historis Penyaluran Harian</h3>
+                    <p class="text-xs text-slate-400">Daftar entri data harian beserta detail shift (S1 / S2) yang terekam di IT Gorontalo.</p>
+                </div>
+                <!-- Action Tools -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportToCSV()" class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center space-x-1">
+                        <i class="fa-solid fa-file-csv text-sm text-green-600"></i>
+                        <span>Ekspor Excel/CSV</span>
+                    </button>
+                    <button onclick="triggerResetConfirmation()" class="bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-900/30 transition flex items-center space-x-1" title="Reset Data ke Default Simulasi">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Reset Data</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Responsive Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs min-w-[900px]">
+                    <thead class="bg-slate-50 dark:bg-slate-900/50 text-slate-500 uppercase font-bold tracking-wider border-b border-slate-200 dark:border-slate-700">
+                        <tr>
+                            <th class="px-4 py-3.5">Tanggal</th>
+                            <th class="px-4 py-3.5 text-amber-600 dark:text-amber-500">BIOSOLAR B40 (S1/S2)</th>
+                            <th class="px-4 py-3.5 text-emerald-600 dark:text-emerald-500">PERTALITE (S1/S2)</th>
+                            <th class="px-4 py-3.5 text-blue-600 dark:text-blue-500">PERTAMAX (S1/S2)</th>
+                            <th class="px-4 py-3.5 text-orange-500">DEXLITE (S1/S2)</th>
+                            <th class="px-4 py-3.5 text-red-600 dark:text-red-500">PERTADEX (S1/S2)</th>
+                            <th class="px-4 py-3.5 text-slate-800 dark:text-slate-200">TOTAL VOLUME (GABUNGAN)</th>
+                            <th class="px-4 py-3.5 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body" class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        <!-- Will be populated dynamically by script -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination-like notice -->
+            <div class="px-6 py-3.5 bg-slate-50 dark:bg-slate-900/20 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs text-slate-400">
+                <span>Menampilkan 10 baris rekaman teratas dari basis data terintegrasi.</span>
+                <span class="font-semibold text-slate-600 dark:text-slate-300">Total: <span id="total-logs-count">--</span> Data Rekam</span>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Input Modal Overlay (New Data) -->
+    <div id="input-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xl transform scale-95 transition-transform duration-300">
+            <div class="bg-slate-900 dark:bg-slate-950 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
+                <div>
+                    <h3 class="font-extrabold text-base">Input Distribusi Berdasarkan Shift</h3>
+                    <p class="text-[10px] text-slate-400">Formulir pemisahan pencatatan Shift 1 & Shift 2 IT Gorontalo.</p>
+                </div>
+                <button onclick="closeModal('input-modal')" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable form container to handle multi-shift elements neatly -->
+            <form id="distribution-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tanggal Distribusi</label>
+                        <input type="date" id="form-date" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                    </div>
+
+                    <div class="border-t border-slate-100 dark:border-slate-700 pt-3">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3">Detail Penyaluran per Produk (KL)</span>
+                    </div>
+
+                    <!-- BIOSOLAR B40 -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-amber-500 mb-2">BIOSOLAR B40</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="form-b40-s1" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="form-b40-s2" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PERTALITE -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-emerald-500 mb-2">PERTALITE</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="form-pertalite-s1" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="form-pertalite-s2" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PERTAMAX -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-blue-500 mb-2">PERTAMAX</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="form-pertamax-s1" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="form-pertamax-s2" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DEXLITE -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-orange-500 mb-2">DEXLITE</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="form-dexlite-s1" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="form-dexlite-s2" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PERTADEX -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-red-500 mb-2">PERTADEX</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="form-pertadex-s1" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="form-pertadex-s2" required placeholder="0.0" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-2">
+                    <button type="button" onclick="closeModal('input-modal')" class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">Batal</button>
+                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-lg shadow-red-600/20 transition">Simpan Entri Shift</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit / Adjustment Modal Overlay -->
+    <div id="edit-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xl transform scale-95 transition-transform duration-300">
+            <div class="bg-slate-900 dark:bg-slate-950 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
+                <div>
+                    <h3 class="font-extrabold text-base">Penyesuaian (Adjustment) Data</h3>
+                    <p class="text-[10px] text-slate-400">Ubah data penyaluran jika terjadi kesalahan pencatatan.</p>
+                </div>
+                <button onclick="closeModal('edit-modal')" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable form container to handle multi-shift elements neatly -->
+            <form id="edit-form" onsubmit="handleEditFormSubmit(event)" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tanggal Penyaluran (Terkunci)</label>
+                        <input type="date" id="edit-form-date" readonly class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm px-3 py-2 text-slate-500 dark:text-slate-400 cursor-not-allowed focus:outline-none">
+                    </div>
+
+                    <div class="border-t border-slate-100 dark:border-slate-700 pt-3">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3">Penyesuaian Penyaluran per Produk (KL)</span>
+                    </div>
+
+                    <!-- BIOSOLAR B40 -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-amber-500 mb-2">BIOSOLAR B40</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="edit-form-b40-s1" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="edit-form-b40-s2" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PERTALITE -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-emerald-500 mb-2">PERTALITE</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="edit-form-pertalite-s1" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="edit-form-pertalite-s2" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PERTAMAX -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-blue-500 mb-2">PERTAMAX</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="edit-form-pertamax-s1" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="edit-form-pertamax-s2" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DEXLITE -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-orange-500 mb-2">DEXLITE</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="edit-form-dexlite-s1" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="edit-form-dexlite-s2" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PERTADEX -->
+                    <div class="bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-extrabold text-red-500 mb-2">PERTADEX</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 1</label>
+                                <input type="number" step="0.1" id="edit-form-pertadex-s1" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Shift 2</label>
+                                <input type="number" step="0.1" id="edit-form-pertadex-s2" required class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-2">
+                    <button type="button" onclick="closeModal('edit-modal')" class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">Batal</button>
+                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-lg shadow-red-600/20 transition">Simpan Penyesuaian</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal (Replacing standard window.confirm - Rule 3 guardrail) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xl transform scale-95 transition-transform duration-300">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 text-red-600 mb-3">
+                    <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">Konfirmasi Atur Ulang Data</h3>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
+                    Apakah Anda yakin ingin mengatur ulang basis data kembali ke status simulasi default IT Gorontalo? Semua data input baru atau modifikasi shift yang Anda buat akan terhapus dari Cloud Firestore secara permanen.
+                </p>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeModal('confirm-modal')" class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">Batal</button>
+                    <button onclick="confirmResetMockData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-lg shadow-red-600/20 transition">Atur Ulang</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Delete Confirmation Modal (Replacing standard window.confirm) -->
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xl transform scale-95 transition-transform duration-300">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 text-red-600 mb-3">
+                    <i class="fa-solid fa-trash-can text-2xl"></i>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">Konfirmasi Hapus Data</h3>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
+                    Apakah Anda yakin ingin menghapus data penyaluran tanggal <span id="delete-date-display" class="font-bold text-slate-800 dark:text-slate-200"></span> secara permanen dari basis data cloud?
+                </p>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeModal('delete-confirm-modal')" class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">Batal</button>
+                    <button onclick="confirmDeleteData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-lg shadow-red-600/20 transition">Hapus Permanen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Notification Banner -->
+    <div id="notif-box" class="fixed bottom-4 right-4 z-50 bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300">
+        <span class="p-1.5 bg-emerald-500 rounded-lg text-white"><i class="fa-solid fa-circle-check"></i></span>
+        <span id="notif-text" class="text-xs font-semibold">Tindakan berhasil diproses!</span>
+    </div>
+
+    <!-- Footer Section -->
+    <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-6 text-center text-xs text-slate-400">
+        <p>© 2026 Integrated Terminal Gorontalo - Operational Command Platform. All rights reserved.</p>
+        <p class="mt-1 text-slate-500 dark:text-slate-500">Pertamina Fuel Distribution Optimization Engine • Built for Precision Monitoring</p>
+    </footer>
+
+    <!-- Firebase App and Services (Rule 1, 2, 3 compliant import structure) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, query, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Injectables from Environment Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(__firebase_config);
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Core State
+        let distributionData = []; // Will hold synchronized documents from Firestore
+        let trendChartInstance = null;
+        let productShareChartInstance = null;
+        let currentActiveTab = 'daily';
+        let currentStressMultiplier = 0; // percentage boost: 0 to 100
+        let selectedDeleteDate = ''; // holds active date target to delete
+
+        // Cap limit thresholds for IT Gorontalo pumps (KL/day) for Stress Testing
+        const TERMINAL_CAPACITIES = {
+            'BIOSOLARB40': 110,
+            'PERTALITE': 180,
+            'PERTAMAX': 80,
+            'DEXLITE': 40,
+            'PERTADEX': 20
+        };
+
+        const PRODUCTS = ['BIOSOLARB40', 'PERTALITE', 'PERTAMAX', 'DEXLITE', 'PERTADEX'];
+
+        // Helper to sum S1 and S2 of a product in an entry
+        function getProductTotal(entry, product) {
+            const s1 = parseFloat(entry[`${product}_s1`]) || 0;
+            const s2 = parseFloat(entry[`${product}_s2`]) || 0;
+            return Math.round((s1 + s2) * 10) / 10;
+        }
+
+        // Seeding / Generating dynamic mock distribution database for 1 complete year if Cloud Firestore is empty
+        function generateMockDatabase() {
+            const data = [];
+            const startYear = 2025;
+            const startDate = new Date(startYear, 0, 1);
+            const totalDays = 365;
+
+            // Base consumption defaults (KL)
+            const baseValues = {
+                'BIOSOLARB40': { avg: 45, variance: 12 },
+                'PERTALITE': { avg: 85, variance: 18 },
+                'PERTAMAX': { avg: 35, variance: 8 },
+                'DEXLITE': { avg: 15, variance: 5 },
+                'PERTADEX': { avg: 8, variance: 3 }
+            };
+
+            for (let i = 0; i < totalDays; i++) {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + i);
+                
+                const dayOfWeek = currentDate.getDay(); 
+                const month = currentDate.getMonth();   
+
+                let weeklyMultiplier = 1.0;
+                if (dayOfWeek === 5 || dayOfWeek === 6) weeklyMultiplier = 1.25; 
+                else if (dayOfWeek === 1) weeklyMultiplier = 1.15; 
+                else if (dayOfWeek === 0) weeklyMultiplier = 0.85; 
+
+                let monthlyMultiplier = 1.0;
+                if (month === 11) monthlyMultiplier = 1.35; 
+                else if (month === 5 || month === 6) monthlyMultiplier = 1.20; 
+                else if (month === 8) monthlyMultiplier = 0.90; 
+
+                const entry = {
+                    date: currentDate.toISOString().split('T')[0]
+                };
+
+                // Add random noise, apply multipliers, and split logically into Shift 1 & Shift 2 (Shift 1 is usually busier)
+                Object.keys(baseValues).forEach(prod => {
+                    const base = baseValues[prod];
+                    const randomNoise = (Math.random() * 2 - 1) * base.variance;
+                    let val = (base.avg + randomNoise) * weeklyMultiplier * monthlyMultiplier;
+                    
+                    if (prod === 'BIOSOLARB40' && (dayOfWeek >= 3 && dayOfWeek <= 5)) {
+                        val *= 1.15;
+                    }
+
+                    const totalVal = Math.round(val * 10) / 10;
+                    const s1Ratio = 0.55 + Math.random() * 0.1; // 55% to 65% of daily volume goes to Shift 1
+                    const s1 = Math.round((totalVal * s1Ratio) * 10) / 10;
+                    const s2 = Math.round((totalVal - s1) * 10) / 10;
+
+                    entry[`${prod}_s1`] = s1;
+                    entry[`${prod}_s2`] = s2;
+                });
+
+                data.push(entry);
+            }
+            return data;
+        }
+
+        // Seeding logic to batch write mock data to cloud (Rule 1 & 2 compliant)
+        async function seedMockDatabase() {
+            db_sync_status_label("MENYIAPKAN DATA CLOUD...");
+            const initialData = generateMockDatabase();
+            
+            // Firebase limits single batches to 500 documents. 365 is perfect.
+            const batch = writeBatch(db);
+            
+            initialData.forEach(entry => {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'distribution_logs', entry.date);
+                batch.set(docRef, entry);
+            });
+            
+            try {
+                await batch.commit();
+                showNotification("Database awalan 1 tahun berhasil disinkronkan ke Cloud!");
+            } catch (err) {
+                console.error("Gagal melakukan seeding database:", err);
+                showNotification("Gagal menyimpan data awal ke cloud.");
+            }
+        }
+
+        // Firebase Auth Init & Reactive Real-time synchronization (Rule 3 prioritizes custom token)
+        const initAuthAndSync = async () => {
+            db_sync_status_label("MENGOTENTIKASI...");
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+
+        // Real-Time Listener Initialization
+        onAuthStateChanged(auth, (user) => {
+            if (!user) return;
+            
+            // Set up listener for public documents (Rule 1 & 2 compliant)
+            const collectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'distribution_logs');
+            
+            onSnapshot(collectionRef, (snapshot) => {
+                const tempDb = [];
+                snapshot.forEach((doc) => {
+                    tempDb.push(doc.data());
+                });
+
+                if (tempDb.length === 0) {
+                    // Seed the cloud Firestore with initial 365-day database if empty
+                    seedMockDatabase();
+                } else {
+                    // Sort locally in memory (Rule 2 compliant - avoid compound query indexes)
+                    distributionData = tempDb.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    updateAllDashboard();
+                    
+                    db_sync_status_label("SINKRONISASI CLOUD AKTIF");
+                    const el = document.getElementById('db-sync-status');
+                    if (el) el.className = "text-emerald-500 font-bold tracking-wider";
+                }
+            }, (error) => {
+                console.error("Firestore sync error:", error);
+                db_sync_status_label("KONEKSI GAGAL (SINKRONISASI OFFLINE)");
+                const el = document.getElementById('db-sync-status');
+                if (el) el.className = "text-red-500 font-bold";
+                showNotification("Gagal memuat data dari cloud. Silakan coba kembali.");
+            });
+        });
+
+        // Initialize Authenticated Cloud session
+        initAuthAndSync().catch(err => {
+            console.error("Auth Failure:", err);
+            showNotification("Gagal menghubungi server keamanan cloud.");
+        });
+
+        // Dynamic Analytical Calculations (Calculates Combined shifts or isolated shift data)
+        function calculateYTDTotal(product, shift = 'COMBINED') {
+            return distributionData.reduce((acc, curr) => {
+                if (product === 'ALL') {
+                    let dayTotal = 0;
+                    PRODUCTS.forEach(p => {
+                        if (shift === 'SHIFT1') dayTotal += parseFloat(curr[`${p}_s1`]) || 0;
+                        else if (shift === 'SHIFT2') dayTotal += parseFloat(curr[`${p}_s2`]) || 0;
+                        else dayTotal += getProductTotal(curr, p);
+                    });
+                    return acc + dayTotal;
+                } else {
+                    if (shift === 'SHIFT1') return acc + (parseFloat(curr[`${product}_s1`]) || 0);
+                    if (shift === 'SHIFT2') return acc + (parseFloat(curr[`${product}_s2`]) || 0);
+                    return acc + getProductTotal(curr, product);
+                }
+            }, 0);
+        }
+
+        // Get Daily average
+        function getAverageDaily(product, shift = 'COMBINED') {
+            if (distributionData.length === 0) return 0;
+            return calculateYTDTotal(product, shift) / distributionData.length;
+        }
+
+        // Calculate moving average over the last N days (for trend indicator)
+        function calculateRecentAverage(product, days = 7) {
+            if (distributionData.length < days) return 0;
+            const subset = distributionData.slice(-days);
+            return subset.reduce((acc, curr) => acc + getProductTotal(curr, product), 0) / days;
+        }
+
+        // Calculates standard deviation to suggest safety buffer stocks (DYNAMIC SELF-ANALYSIS)
+        function calculateSecurityStockBuffer(product) {
+            const avg = getAverageDaily(product, 'COMBINED');
+            if (avg === 0) return 15;
+            const sumSquares = distributionData.reduce((acc, curr) => {
+                const val = (product === 'ALL') ? 
+                    PRODUCTS.reduce((sum, p) => sum + getProductTotal(curr, p), 0) : 
+                    getProductTotal(curr, product);
+                return acc + Math.pow(val - avg, 2);
+            }, 0);
+            const stdDev = Math.sqrt(sumSquares / distributionData.length);
+            const bufferPercentage = Math.round((stdDev / avg) * 1.65 * 100);
+            return Math.min(Math.max(bufferPercentage, 15), 45); 
+        }
+
+        // Find which days are busiest (Gabungan)
+        function getWeeklyDistributionData(product, shift = 'COMBINED') {
+            const daysCount = [0, 0, 0, 0, 0, 0, 0];
+            const daysVolume = [0, 0, 0, 0, 0, 0, 0];
+
+            distributionData.forEach(entry => {
+                const day = new Date(entry.date).getDay();
+                let val = 0;
+                if (product === 'ALL') {
+                    PRODUCTS.forEach(p => {
+                        if (shift === 'SHIFT1') val += parseFloat(entry[`${p}_s1`]) || 0;
+                        else if (shift === 'SHIFT2') val += parseFloat(entry[`${p}_s2`]) || 0;
+                        else val += getProductTotal(entry, p);
+                    });
+                } else {
+                    if (shift === 'SHIFT1') val = parseFloat(entry[`${product}_s1`]) || 0;
+                    else if (shift === 'SHIFT2') val = parseFloat(entry[`${product}_s2`]) || 0;
+                    else val = getProductTotal(entry, product);
+                }
+                daysVolume[day] += val;
+                daysCount[day]++;
+            });
+
+            return daysVolume.map((vol, i) => vol / (daysCount[i] || 1));
+        }
+
+        // Find which months are busiest
+        function getMonthlyDistributionData(product, shift = 'COMBINED') {
+            const monthlyVolume = Array(12).fill(0);
+            const monthlyCount = Array(12).fill(0);
+
+            distributionData.forEach(entry => {
+                const month = new Date(entry.date).getMonth();
+                let val = 0;
+                if (product === 'ALL') {
+                    PRODUCTS.forEach(p => {
+                        if (shift === 'SHIFT1') val += parseFloat(entry[`${p}_s1`]) || 0;
+                        else if (shift === 'SHIFT2') val += parseFloat(entry[`${p}_s2`]) || 0;
+                        else val += getProductTotal(entry, p);
+                    });
+                } else {
+                    if (shift === 'SHIFT1') val = parseFloat(entry[`${product}_s1`]) || 0;
+                    else if (shift === 'SHIFT2') val = parseFloat(entry[`${product}_s2`]) || 0;
+                    else val = getProductTotal(entry, product);
+                }
+                monthlyVolume[month] += val;
+                monthlyCount[month]++;
+            });
+
+            return monthlyVolume.map((vol, i) => vol / (monthlyCount[i] || 1));
+        }
+
+        // Handle Simulator Inputs and Dynamically Recalculate Anomaly & Stress Thresholds
+        function handleStressSlider(val) {
+            currentStressMultiplier = parseInt(val);
+            const valDisplay = document.getElementById('slider-value-display');
+            if (valDisplay) valDisplay.innerText = `+${val}%`;
+            runEarlyWarningSimulation();
+        }
+
+        // CORE PREDICTIVE ENGINE: Simulates and flags potential bottlenecks dynamically
+        function runEarlyWarningSimulation() {
+            if (distributionData.length === 0) return;
+            const multiplier = 1 + (currentStressMultiplier / 100);
+            
+            // Get base daily volume (latest peak)
+            const latestEntry = distributionData[distributionData.length - 1];
+            const totalNormalToday = PRODUCTS.reduce((sum, p) => sum + getProductTotal(latestEntry, p), 0);
+            const totalProjectedToday = Math.round(totalNormalToday * multiplier);
+            
+            const stressPeakVol = document.getElementById('stress-peak-volume');
+            const stressPeakPct = document.getElementById('stress-peak-percentage');
+            if (stressPeakVol) stressPeakVol.innerText = `${totalProjectedToday} KL`;
+            if (stressPeakPct) stressPeakPct.innerText = `+${currentStressMultiplier}% Beban`;
+
+            // Calculate mock max capacity across all products
+            const maxOverallCapacity = Object.values(TERMINAL_CAPACITIES).reduce((a, b) => a + b, 0);
+            const capacityUsagePercentage = Math.min(Math.round((totalProjectedToday / maxOverallCapacity) * 100), 100);
+            
+            const capBar = document.getElementById('stress-capacity-bar');
+            if (capBar) capBar.style.width = `${capacityUsagePercentage}%`;
+
+            // Adjust Bar Color based on stress level
+            const capText = document.getElementById('stress-capacity-text');
+            if (capBar && capText) {
+                if (capacityUsagePercentage > 85) {
+                    capBar.className = 'bg-red-600 h-2.5 rounded-full transition-all duration-300';
+                    capText.innerText = "KRITIS: Volume melewati kapasitas optimal harian IT Gorontalo!";
+                    capText.className = "text-[10px] text-red-600 dark:text-red-400 font-bold mt-2 block";
+                } else if (capacityUsagePercentage > 60) {
+                    capBar.className = 'bg-amber-500 h-2.5 rounded-full transition-all duration-300';
+                    capText.innerText = "WASPADA: Tingkat pengisian tangki timbun mendekati batas atas.";
+                    capText.className = "text-[10px] text-amber-500 font-semibold mt-2 block";
+                } else {
+                    capBar.className = 'bg-emerald-500 h-2.5 rounded-full transition-all duration-300';
+                    capText.innerText = "SITUASI AMAN: Distribusi harian berjalan dalam kapasitas standar.";
+                    capText.className = "text-[10px] text-slate-400 mt-2 block";
+                }
+            }
+
+            // Identify specific stockout risks dynamically
+            const risksFound = [];
+            PRODUCTS.forEach(p => {
+                const projectedVal = getProductTotal(latestEntry, p) * multiplier;
+                const capacity = TERMINAL_CAPACITIES[p];
+                if (projectedVal > capacity) {
+                    risksFound.push({ name: p, projected: Math.round(projectedVal), cap: capacity });
+                }
+            });
+
+            // Update Dynamic Warning Box UI based on Simulated Risk
+            const alertBox = document.getElementById('risk-alert-box');
+            const alertIcon = document.getElementById('risk-icon');
+            const alertTitle = document.getElementById('risk-title');
+            const alertDesc = document.getElementById('risk-desc');
+            const actionNotice = document.getElementById('risk-action-notice');
+            const systemAdvice = document.getElementById('live-system-advice');
+
+            if (alertBox && alertIcon && alertTitle && alertDesc && actionNotice) {
+                if (risksFound.length > 0) {
+                    // Warning / Danger state triggered
+                    alertBox.className = "bg-red-500/10 dark:bg-red-950/20 p-4 rounded-xl border border-red-500/30 dark:border-red-900/30 flex flex-col justify-between transition-colors duration-300";
+                    alertIcon.className = "p-2 bg-red-600 text-white rounded-lg text-sm shrink-0 animate-pulse";
+                    alertIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
+                    
+                    alertTitle.className = "font-extrabold text-red-800 dark:text-red-400";
+                    alertTitle.innerText = `Terdeteksi ${risksFound.length} Potensi Bottleneck`;
+                    
+                    let riskListStr = risksFound.map(r => `<strong>${r.name}</strong> (${r.projected} KL / Kapasitas: ${r.cap} KL)`).join(", ");
+                    alertDesc.className = "text-red-600 dark:text-red-500/80 mt-1 leading-normal";
+                    alertDesc.innerHTML = `Penyaluran ${riskListStr} diprediksi melampaui kemampuan pompa harian IT Gorontalo. Segera lakukan pengisian pengaman stock!`;
+                    
+                    actionNotice.className = "text-[10px] font-bold uppercase tracking-wider text-red-500 mt-3";
+                    actionNotice.innerText = "Saran: Lakukan Pemisahan Shift Penyaluran!";
+                    
+                    if (systemAdvice) {
+                        systemAdvice.innerText = `Bahaya: ${risksFound[0].name} melebihi batas pengisian!`;
+                        systemAdvice.className = "text-[11px] text-red-500 font-bold animate-pulse";
+                    }
+                } else if (currentStressMultiplier > 30) {
+                    // Warning State
+                    alertBox.className = "bg-amber-500/10 dark:bg-amber-950/20 p-4 rounded-xl border border-amber-500/30 dark:border-amber-900/30 flex flex-col justify-between transition-colors duration-300";
+                    alertIcon.className = "p-2 bg-amber-500 text-white rounded-lg text-sm shrink-0";
+                    alertIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i>`;
+                    
+                    alertTitle.className = "font-extrabold text-amber-800 dark:text-amber-400";
+                    alertTitle.innerText = "Operasional Beban Tinggi";
+                    
+                    alertDesc.className = "text-amber-600 dark:text-amber-500/80 mt-1 leading-normal";
+                    alertDesc.innerText = "Kepadatan logistik meningkat secara signifikan. Antrean truk tangki kemungkinan akan memanjang selama waktu sibuk di pagi hari.";
+                    
+                    actionNotice.className = "text-[10px] font-bold uppercase tracking-wider text-amber-500 mt-3";
+                    actionNotice.innerText = "Saran: Standby Operator Tambahan";
+                    
+                    if (systemAdvice) {
+                        systemAdvice.innerText = "Waspada: Volume penyaluran mendekati batas waspada.";
+                        systemAdvice.className = "text-[11px] text-amber-500 font-semibold";
+                    }
+                } else {
+                    // Clear State
+                    alertBox.className = "bg-emerald-500/10 dark:bg-emerald-950/20 p-4 rounded-xl border border-emerald-500/30 dark:border-emerald-900/30 flex flex-col justify-between transition-colors duration-300";
+                    alertIcon.className = "p-2 bg-emerald-500 text-white rounded-lg text-sm shrink-0";
+                    alertIcon.innerHTML = `<i class="fa-solid fa-circle-check"></i>`;
+                    
+                    alertTitle.className = "font-extrabold text-emerald-800 dark:text-emerald-400";
+                    alertTitle.innerText = "Semua Jalur Aman";
+                    
+                    alertDesc.className = "text-emerald-600 dark:text-emerald-500/80 mt-1 leading-normal";
+                    alertDesc.innerText = "Dengan volume data saat ini, sistem tidak memprediksi adanya risiko kekosongan stock atau antrean overload armada.";
+                    
+                    actionNotice.className = "text-[10px] font-bold uppercase tracking-wider text-emerald-500 mt-3";
+                    actionNotice.innerText = "SITUASI OPERASIONAL: NORMAL";
+                    
+                    if (systemAdvice) {
+                        systemAdvice.innerText = "Siapkan stok ekstra sebelum periode crowded mingguan.";
+                        systemAdvice.className = "text-[11px] text-slate-400 font-medium";
+                    }
+                }
+            }
+        }
+
+        // Calculate and display trend arrow/indicators on KPI blocks
+        function calculateAndRenderKPITrends() {
+            PRODUCTS.forEach(p => {
+                const recentAvg = calculateRecentAverage(p, 7); 
+                const olderAvg = calculateRecentAverage(p, 14) - (recentAvg / 2); 
+                
+                const percentDiff = olderAvg > 0 ? Math.round(((recentAvg - olderAvg) / olderAvg) * 100) : 0;
+                
+                // BIOSOLARB40 maps to 'badge-trend-biosolarb40'
+                const badgeId = `badge-trend-${p.toLowerCase()}`;
+                const badge = document.getElementById(badgeId);
+                
+                if (!badge) {
+                    return;
+                }
+                
+                if (percentDiff > 3) {
+                    badge.className = "text-[10px] font-bold flex items-center space-x-0.5 text-red-500";
+                    badge.innerHTML = `<i class="fa-solid fa-arrow-trend-up"></i> <span>+${percentDiff}%</span>`;
+                } else if (percentDiff < -3) {
+                    badge.className = "text-[10px] font-bold flex items-center space-x-0.5 text-emerald-500";
+                    badge.innerHTML = `<i class="fa-solid fa-arrow-trend-down"></i> <span>${percentDiff}%</span>`;
+                } else {
+                    badge.className = "text-[10px] font-bold flex items-center space-x-0.5 text-slate-400";
+                    badge.innerHTML = `<i class="fa-solid fa-minus"></i> <span>Stabil</span>`;
+                }
+            });
+        }
+
+        // Generate Smart Operational Recommendations (COMPLETELY SELF-ANALYZING)
+        function generateStockAdvisories() {
+            const advisorContainer = document.getElementById('advisor-list');
+            if (!advisorContainer) return;
+            advisorContainer.innerHTML = '';
+
+            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            // 1. Calculate overall peak day based on current db
+            let overallPeakDayVal = 0;
+            let overallPeakDayIdx = 0;
+            const weekAvg = getWeeklyDistributionData('ALL', 'COMBINED');
+            weekAvg.forEach((v, i) => {
+                if (v > overallPeakDayVal) {
+                    overallPeakDayVal = v;
+                    overallPeakDayIdx = i;
+                }
+            });
+
+            // 2. Calculate overall peak month based on current db
+            let overallPeakMonthVal = 0;
+            let overallPeakMonthIdx = 0;
+            const monthAvg = getMonthlyDistributionData('ALL', 'COMBINED');
+            monthAvg.forEach((v, i) => {
+                if (v > overallPeakMonthVal) {
+                    overallPeakMonthVal = v;
+                    overallPeakMonthIdx = i;
+                }
+            });
+
+            // 3. Find the dominant product dynamically
+            const productTotals = PRODUCTS.map(p => ({ name: p, total: calculateYTDTotal(p, 'COMBINED') }));
+            productTotals.sort((a, b) => b.total - a.total);
+            const topProduct = productTotals[0].name;
+            const topProductShare = Math.round((productTotals[0].total / calculateYTDTotal('ALL', 'COMBINED')) * 100);
+
+            // Update Peak Indicators on screen
+            const peakDayLabel = document.getElementById('peak-day-label');
+            const peakMonthLabel = document.getElementById('peak-month-label');
+            const bufferStockLabel = document.getElementById('buffer-stock-label');
+            
+            if (peakDayLabel) peakDayLabel.innerText = dayNames[overallPeakDayIdx];
+            if (peakMonthLabel) peakMonthLabel.innerText = monthNames[overallPeakMonthIdx];
+            
+            const maxBuffer = Math.round(calculateSecurityStockBuffer('ALL'));
+            if (bufferStockLabel) bufferStockLabel.innerText = `+${maxBuffer}%`;
+
+            // Prepare custom bullet-points advisory based on the dynamic database calculation
+            const advisories = [
+                {
+                    title: `Puncak Keramaian Mingguan: Hari ${dayNames[overallPeakDayIdx]}`,
+                    desc: `Analisis data terbaru menunjukkan penyaluran harian memuncak signifikan pada hari <strong>${dayNames[overallPeakDayIdx]}</strong>. Direkomendasikan IT Gorontalo melakukan pengisian stock maksimal ke terminal tangki SPBU mitra pada hari <strong>${dayNames[(overallPeakDayIdx - 1 + 7) % 7]} sore</strong> sebelum lonjakan permintaan terjadi.`,
+                    icon: 'fa-calendar-day',
+                    color: 'text-amber-500 bg-amber-500/10'
+                },
+                {
+                    title: `Antisipasi Musiman: Bulan ${monthNames[overallPeakMonthIdx]}`,
+                    desc: `Konsumsi bulanan mencapai tingkat tertinggi di bulan <strong>${monthNames[overallPeakMonthIdx]}</strong>. Disarankan untuk mempersiapkan buffer stok pengaman minimum sebesar <strong>${maxBuffer}%</strong> dari level biasa pada pertengahan bulan sebelumnya demi memitigasi risiko kelangkaan di SPBU.`,
+                    icon: 'fa-calendar-days',
+                    color: 'text-red-500 bg-red-500/10'
+                },
+                {
+                    title: `Optimalisasi Suplai Utama: ${topProduct}`,
+                    desc: `Produk <strong>${topProduct}</strong> mendominasi sekitar <strong>${topProductShare}%</strong> dari total kebutuhan berjalan di Gorontalo. Prioritaskan penjadwalan pompa loading armada tangki di terminal secara berkala sejak pukul 04:00 WITA untuk produk ini.`,
+                    icon: 'fa-gas-pump',
+                    color: 'text-emerald-500 bg-emerald-500/10'
+                }
+            ];
+
+            advisories.forEach(adv => {
+                const el = document.createElement('div');
+                el.className = 'flex items-start space-x-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 transition hover:border-slate-200 dark:hover:border-slate-700';
+                el.innerHTML = `
+                    <div class="p-2.5 rounded-lg ${adv.color} shrink-0 mt-0.5">
+                        <i class="fa-solid ${adv.icon} text-sm"></i>
+                    </div>
+                    <div class="text-xs">
+                        <h4 class="font-bold text-slate-800 dark:text-white">${adv.title}</h4>
+                        <p class="text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">${adv.desc}</p>
+                    </div>
+                `;
+                advisorContainer.appendChild(el);
+            });
+        }
+
+        // Charts Management
+        function updateAllCharts() {
+            if (distributionData.length === 0) return;
+            const productFilter = document.getElementById('product-filter').value;
+            const shiftFilter = document.getElementById('shift-filter').value;
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+            const gridColor = isDark ? '#334155' : '#e2e8f0';
+
+            let labels = [];
+            let datasets = [];
+
+            const productColors = {
+                'BIOSOLARB40': '#D97706',
+                'PERTALITE': '#10B981',
+                'PERTAMAX': '#1D4ED8',
+                'DEXLITE': '#F97316',
+                'PERTADEX': '#DC2626'
+            };
+
+            const latestLogs = [...distributionData].slice(-14); // Keep last 14 days for daily view
+
+            if (currentActiveTab === 'daily') {
+                const chartTitleEl = document.getElementById('chart-title');
+                const chartSubEl = document.getElementById('chart-subtitle');
+                if (chartTitleEl) chartTitleEl.innerText = "Visualisasi Tren Distribusi BBM Harian (14 Hari Terakhir)";
+                if (chartSubEl) chartSubEl.innerText = `Rincian volume harian per-produk BBM (KL). Mode analisa: ${shiftFilter === 'COMBINED' ? 'Gabungan' : shiftFilter === 'SHIFT1' ? 'Shift 1' : shiftFilter === 'SHIFT2' ? 'Shift 2' : 'Komparasi Shift'}.`;
+                
+                labels = latestLogs.map(l => {
+                    const d = new Date(l.date);
+                    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                });
+
+                if (shiftFilter === 'COMPARE') {
+                    if (productFilter === 'ALL') {
+                        datasets = [
+                            {
+                                label: 'Total Shift 1',
+                                data: latestLogs.map(l => PRODUCTS.reduce((acc, p) => acc + (parseFloat(l[`${p}_s1`]) || 0), 0)),
+                                borderColor: '#10B981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                borderWidth: 2.5,
+                                fill: true,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Total Shift 2',
+                                data: latestLogs.map(l => PRODUCTS.reduce((acc, p) => acc + (parseFloat(l[`${p}_s2`]) || 0), 0)),
+                                borderColor: '#3B82F6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                borderWidth: 2.5,
+                                fill: true,
+                                tension: 0.3
+                            }
+                        ];
+                    } else {
+                        datasets = [
+                            {
+                                label: `${productFilter} (Shift 1)`,
+                                data: latestLogs.map(l => parseFloat(l[`${productFilter}_s1`]) || 0),
+                                borderColor: productColors[productFilter],
+                                borderDash: [5, 5],
+                                backgroundColor: 'transparent',
+                                borderWidth: 2,
+                                tension: 0.3
+                            },
+                            {
+                                label: `${productFilter} (Shift 2)`,
+                                data: latestLogs.map(l => parseFloat(l[`${productFilter}_s2`]) || 0),
+                                borderColor: productColors[productFilter],
+                                backgroundColor: productColors[productFilter] + '15',
+                                borderWidth: 2.5,
+                                fill: true,
+                                tension: 0.3
+                            }
+                        ];
+                    }
+                } else {
+                    if (productFilter === 'ALL') {
+                        datasets = Object.keys(productColors).map(prod => ({
+                            label: prod,
+                            data: latestLogs.map(l => {
+                                if (shiftFilter === 'SHIFT1') return parseFloat(l[`${prod}_s1`]) || 0;
+                                if (shiftFilter === 'SHIFT2') return parseFloat(l[`${prod}_s2`]) || 0;
+                                return getProductTotal(l, prod);
+                            }),
+                            borderColor: productColors[prod],
+                            backgroundColor: productColors[prod] + '15',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3
+                        }));
+                    } else {
+                        datasets = [{
+                            label: `${productFilter} (${shiftFilter === 'SHIFT1' ? 'Shift 1' : shiftFilter === 'SHIFT2' ? 'Shift 2' : 'Gabungan'})`,
+                            data: latestLogs.map(l => {
+                                if (shiftFilter === 'SHIFT1') return parseFloat(l[`${productFilter}_s1`]) || 0;
+                                if (shiftFilter === 'SHIFT2') return parseFloat(l[`${productFilter}_s2`]) || 0;
+                                return getProductTotal(l, productFilter);
+                            }),
+                            borderColor: productColors[productFilter],
+                            backgroundColor: productColors[productFilter] + '25',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.3
+                        }];
+                    }
+                }
+            } 
+            else if (currentActiveTab === 'weekly') {
+                const chartTitleEl = document.getElementById('chart-title');
+                const chartSubEl = document.getElementById('chart-subtitle');
+                if (chartTitleEl) chartTitleEl.innerText = "Tren Rata-Rata Mingguan (Analisis Beban Keramaian)";
+                if (chartSubEl) chartSubEl.innerText = "Membandingkan rata-rata penyaluran berdasarkan Hari (Minggu - Sabtu) untuk mencari pola sibuk.";
+
+                labels = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+                if (shiftFilter === 'COMPARE') {
+                    if (productFilter === 'ALL') {
+                        datasets = [
+                            {
+                                label: 'Rata-rata Shift 1',
+                                data: getWeeklyDistributionData('ALL', 'SHIFT1'),
+                                backgroundColor: '#10B981',
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Rata-rata Shift 2',
+                                data: getWeeklyDistributionData('ALL', 'SHIFT2'),
+                                backgroundColor: '#3B82F6',
+                                borderRadius: 4
+                            }
+                        ];
+                    } else {
+                        datasets = [
+                            {
+                                label: `${productFilter} - Shift 1`,
+                                data: getWeeklyDistributionData(productFilter, 'SHIFT1'),
+                                backgroundColor: productColors[productFilter] + '90',
+                                borderRadius: 4
+                            },
+                            {
+                                label: `${productFilter} - Shift 2`,
+                                data: getWeeklyDistributionData(productFilter, 'SHIFT2'),
+                                backgroundColor: productColors[productFilter] + '30',
+                                borderRadius: 4
+                            }
+                        ];
+                    }
+                } else {
+                    if (productFilter === 'ALL') {
+                        datasets = Object.keys(productColors).map(prod => ({
+                            label: prod,
+                            data: getWeeklyDistributionData(prod, shiftFilter),
+                            backgroundColor: productColors[prod],
+                            borderRadius: 4
+                        }));
+                    } else {
+                        datasets = [{
+                            label: productFilter,
+                            data: getWeeklyDistributionData(productFilter, shiftFilter),
+                            backgroundColor: productColors[productFilter],
+                            borderRadius: 6
+                        }];
+                    }
+                }
+            } 
+            else if (currentActiveTab === 'monthly') {
+                const chartTitleEl = document.getElementById('chart-title');
+                const chartSubEl = document.getElementById('chart-subtitle');
+                if (chartTitleEl) chartTitleEl.innerText = "Analisis Distribusi Bulanan";
+                if (chartSubEl) chartSubEl.innerText = "Penyaluran rata-rata bulanan dalam 1 tahun kalender.";
+
+                labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+                if (shiftFilter === 'COMPARE') {
+                    if (productFilter === 'ALL') {
+                        datasets = [
+                            {
+                                label: 'Rata-rata Bulanan Shift 1',
+                                data: getMonthlyDistributionData('ALL', 'SHIFT1'),
+                                borderColor: '#10B981',
+                                backgroundColor: 'transparent',
+                                borderWidth: 2,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Rata-rata Bulanan Shift 2',
+                                data: getMonthlyDistributionData('ALL', 'SHIFT2'),
+                                borderColor: '#3B82F6',
+                                backgroundColor: 'transparent',
+                                borderWidth: 2,
+                                tension: 0.3
+                            }
+                        ];
+                    } else {
+                        datasets = [
+                            {
+                                label: `${productFilter} - Shift 1`,
+                                data: getMonthlyDistributionData(productFilter, 'SHIFT1'),
+                                borderColor: productColors[productFilter],
+                                borderDash: [5, 5],
+                                backgroundColor: 'transparent',
+                                borderWidth: 2,
+                                tension: 0.3
+                            },
+                            {
+                                label: `${productFilter} - Shift 2`,
+                                data: getMonthlyDistributionData(productFilter, 'SHIFT2'),
+                                borderColor: productColors[productFilter],
+                                backgroundColor: 'transparent',
+                                borderWidth: 2.5,
+                                tension: 0.3
+                            }
+                        ];
+                    }
+                } else {
+                    if (productFilter === 'ALL') {
+                        datasets = Object.keys(productColors).map(prod => ({
+                            label: prod,
+                            data: getMonthlyDistributionData(prod, shiftFilter),
+                            borderColor: productColors[prod],
+                            backgroundColor: productColors[prod] + '10',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3
+                        }));
+                    } else {
+                        datasets = [{
+                            label: productFilter,
+                            data: getMonthlyDistributionData(productFilter, shiftFilter),
+                            borderColor: productColors[productFilter],
+                            backgroundColor: productColors[productFilter] + '25',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.3
+                        }];
+                    }
+                }
+            } 
+            else if (currentActiveTab === 'quarterly') {
+                const chartTitleEl = document.getElementById('chart-title');
+                const chartSubEl = document.getElementById('chart-subtitle');
+                if (chartTitleEl) chartTitleEl.innerText = "Tren Triwulan (Quarterly)";
+                if (chartSubEl) chartSubEl.innerText = "Akumulasi volume penyaluran yang dikelompokkan per Triwulan (Q1 - Q4).";
+
+                labels = ['Triwulan I (Q1)', 'Triwulan II (Q2)', 'Triwulan III (Q3)', 'Triwulan IV (Q4)'];
+
+                const getQuarterlyStats = (prod, targetShift) => {
+                    const q = [0, 0, 0, 0];
+                    distributionData.forEach(entry => {
+                        const m = new Date(entry.date).getMonth();
+                        let val = 0;
+                        if (prod === 'ALL') {
+                            PRODUCTS.forEach(p => {
+                                if (targetShift === 'SHIFT1') val += parseFloat(entry[`${p}_s1`]) || 0;
+                                else if (targetShift === 'SHIFT2') val += parseFloat(entry[`${p}_s2`]) || 0;
+                                else val += getProductTotal(entry, p);
+                            });
+                        } else {
+                            if (targetShift === 'SHIFT1') val = parseFloat(entry[`${prod}_s1`]) || 0;
+                            else if (targetShift === 'SHIFT2') val = parseFloat(entry[`${prod}_s2`]) || 0;
+                            else val = getProductTotal(entry, prod);
+                        }
+
+                        if (m < 3) q[0] += val;
+                        else if (m < 6) q[1] += val;
+                        else if (m < 9) q[2] += val;
+                        else q[3] += val;
+                    });
+                    return q;
+                };
+
+                if (shiftFilter === 'COMPARE') {
+                    datasets = [
+                        {
+                            label: 'Total Shift 1',
+                            data: getQuarterlyStats(productFilter, 'SHIFT1'),
+                            backgroundColor: '#10B981',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Total Shift 2',
+                            data: getQuarterlyStats(productFilter, 'SHIFT2'),
+                            backgroundColor: '#3B82F6',
+                            borderRadius: 4
+                        }
+                    ];
+                } else {
+                    if (productFilter === 'ALL') {
+                        datasets = Object.keys(productColors).map(prod => ({
+                            label: prod,
+                            data: getQuarterlyStats(prod, shiftFilter),
+                            backgroundColor: productColors[prod],
+                            borderRadius: 4
+                        }));
+                    } else {
+                        datasets = [{
+                            label: productFilter,
+                            data: getQuarterlyStats(productFilter, shiftFilter),
+                            backgroundColor: productColors[productFilter],
+                            borderRadius: 6
+                        }];
+                    }
+                }
+            } 
+            else if (currentActiveTab === 'accumulated') {
+                const chartTitleEl = document.getElementById('chart-title');
+                const chartSubEl = document.getElementById('chart-subtitle');
+                if (chartTitleEl) chartTitleEl.innerText = "Akumulasi Total Berjalan (YTD Cumulative)";
+                if (chartSubEl) chartSubEl.innerText = "Melihat progres akumulasi total BBM yang berhasil disalurkan sepanjang tahun.";
+
+                labels = distributionData.map(l => {
+                    const d = new Date(l.date);
+                    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                });
+
+                const step = Math.ceil(distributionData.length / 30);
+                const sampledLabels = [];
+                const accumData = {};
+                
+                Object.keys(productColors).forEach(p => { 
+                    accumData[`${p}_s1`] = []; 
+                    accumData[`${p}_s2`] = []; 
+                    accumData[`${p}_total`] = []; 
+                });
+
+                let runningSums = {};
+                PRODUCTS.forEach(p => {
+                    runningSums[`${p}_s1`] = 0;
+                    runningSums[`${p}_s2`] = 0;
+                });
+
+                distributionData.forEach((entry, idx) => {
+                    PRODUCTS.forEach(p => {
+                        runningSums[`${p}_s1`] += parseFloat(entry[`${p}_s1`]) || 0;
+                        runningSums[`${p}_s2`] += parseFloat(entry[`${p}_s2`]) || 0;
+                    });
+                    if (idx % step === 0 || idx === distributionData.length - 1) {
+                        const d = new Date(entry.date);
+                        sampledLabels.push(d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }));
+                        PRODUCTS.forEach(p => {
+                            accumData[`${p}_s1`].push(Math.round(runningSums[`${p}_s1`]));
+                            accumData[`${p}_s2`].push(Math.round(runningSums[`${p}_s2`]));
+                            accumData[`${p}_total`].push(Math.round(runningSums[`${p}_s1`] + runningSums[`${p}_s2`]));
+                        });
+                    }
+                });
+
+                labels = sampledLabels;
+
+                if (shiftFilter === 'COMPARE') {
+                    if (productFilter === 'ALL') {
+                        let totalS1 = Array(labels.length).fill(0);
+                        let totalS2 = Array(labels.length).fill(0);
+                        PRODUCTS.forEach(p => {
+                            accumData[`${p}_s1`].forEach((v, i) => totalS1[i] += v);
+                            accumData[`${p}_s2`].forEach((v, i) => totalS2[i] += v);
+                        });
+                        datasets = [
+                            { label: 'Akumulasi Shift 1', data: totalS1, borderColor: '#10B981', backgroundColor: 'transparent', borderWidth: 2.5 },
+                            { label: 'Akumulasi Shift 2', data: totalS2, borderColor: '#3B82F6', backgroundColor: 'transparent', borderWidth: 2.5 }
+                        ];
+                    } else {
+                        datasets = [
+                            { label: `${productFilter} S1`, data: accumData[`${productFilter}_s1`], borderColor: productColors[productFilter], borderDash: [5, 5], backgroundColor: 'transparent', borderWidth: 2 },
+                            { label: `${productFilter} S2`, data: accumData[`${productFilter}_s2`], borderColor: productColors[productFilter], backgroundColor: 'transparent', borderWidth: 2.5 }
+                        ];
+                    }
+                } else {
+                    if (productFilter === 'ALL') {
+                        datasets = Object.keys(productColors).map(prod => ({
+                            label: prod,
+                            data: accumData[`${prod}_${shiftFilter === 'SHIFT1' ? 's1' : shiftFilter === 's2' ? 's2' : 'total'}`],
+                            borderColor: productColors[prod],
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 1,
+                            tension: 0.1
+                        }));
+                    } else {
+                        datasets = [{
+                            label: productFilter,
+                            data: accumData[`${productFilter}_${shiftFilter === 'SHIFT1' ? 's1' : shiftFilter === 'SHIFT2' ? 's2' : 'total'}`],
+                            borderColor: productColors[productFilter],
+                            backgroundColor: productColors[productFilter] + '10',
+                            borderWidth: 3,
+                            fill: true,
+                            pointRadius: 2,
+                            tension: 0.1
+                        }];
+                    }
+                }
+            }
+
+            // Draw Main Chart
+            if (trendChartInstance) trendChartInstance.destroy();
+            
+            const ctx = document.getElementById('distributionTrendChart').getContext('2d');
+            trendChartInstance = new Chart(ctx, {
+                type: (currentActiveTab === 'weekly' || currentActiveTab === 'quarterly') ? 'bar' : 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: textColor, font: { family: 'Inter', size: 10 } }
+                        },
+                        tooltip: {
+                            padding: 12,
+                            cornerRadius: 8,
+                            bodyFont: { family: 'Inter' },
+                            titleFont: { family: 'Inter', weight: 'bold' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'transparent' },
+                            ticks: { color: textColor, font: { family: 'Inter', size: 9 } }
+                        },
+                        y: {
+                            grid: { color: gridColor },
+                            ticks: { color: textColor, font: { family: 'Inter', size: 9 } }
+                        }
+                    }
+                }
+            });
+
+            // PIE CHART RATIO pembagian produk YTD (Combined)
+            const shares = Object.keys(productColors).map(p => calculateYTDTotal(p, 'COMBINED'));
+            const totalSum = shares.reduce((a, b) => a + b, 0);
+            const sharePercentages = shares.map(s => Math.round((s / totalSum) * 100));
+
+            let highestIdx = 0;
+            let highestVal = 0;
+            sharePercentages.forEach((p, idx) => {
+                if (p > highestVal) {
+                    highestVal = p;
+                    highestIdx = idx;
+                }
+            });
+            const prodList = Object.keys(productColors);
+            const highestShareLabel = document.getElementById('highest-share-prod');
+            if (highestShareLabel) highestShareLabel.innerText = `${prodList[highestIdx]} (${highestVal}%)`;
+
+            if (productShareChartInstance) productShareChartInstance.destroy();
+            const pieCtx = document.getElementById('productShareChart').getContext('2d');
+            productShareChartInstance = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: prodList,
+                    datasets: [{
+                        data: shares,
+                        backgroundColor: Object.values(productColors),
+                        borderWidth: isDark ? 2 : 1,
+                        borderColor: isDark ? '#1e293b' : '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // Handle Switch Tab
+        function switchTrendTab(tab) {
+            currentActiveTab = tab;
+            document.querySelectorAll('.trend-tab').forEach(el => {
+                el.classList.remove('bg-red-600', 'text-white', 'border-red-600');
+                el.classList.add('text-slate-600', 'dark:text-slate-300', 'border-slate-200', 'dark:border-slate-700');
+            });
+
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-600', 'dark:text-slate-300', 'border-slate-200', 'dark:border-slate-700');
+                activeBtn.classList.add('bg-red-600', 'text-white', 'border-red-600');
+            }
+
+            updateAllCharts();
+        }
+
+        function updateChartTheme() {
+            if(trendChartInstance && productShareChartInstance) {
+                updateAllCharts();
+            }
+        }
+
+        // UI Helpers & Table Population
+        function populateTable() {
+            const tableBody = document.getElementById('log-table-body');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            const latestLogs = [...distributionData].slice(-10).reverse();
+
+            latestLogs.forEach(log => {
+                const b40_tot = getProductTotal(log, 'BIOSOLARB40');
+                const pertalite_tot = getProductTotal(log, 'PERTALITE');
+                const pertamax_tot = getProductTotal(log, 'PERTAMAX');
+                const dexlite_tot = getProductTotal(log, 'DEXLITE');
+                const pertadex_tot = getProductTotal(log, 'PERTADEX');
+                
+                const total = b40_tot + pertalite_tot + pertamax_tot + dexlite_tot + pertadex_tot;
+                const dateObj = new Date(log.date);
+                const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 dark:hover:bg-slate-800/30 transition';
+                tr.innerHTML = `
+                    <td class="px-4 py-3.5 font-semibold text-slate-800 dark:text-slate-200">${dateStr}</td>
+                    <td class="px-4 py-3.5">
+                        <span class="font-bold text-amber-600 dark:text-amber-500 block text-xs">${b40_tot.toLocaleString('id-ID')} KL</span>
+                        <span class="text-[10px] text-slate-400 block">S1:${log.BIOSOLARB40_s1} / S2:${log.BIOSOLARB40_s2}</span>
+                    </td>
+                    <td class="px-4 py-3.5">
+                        <span class="font-bold text-emerald-600 dark:text-emerald-500 block text-xs">${pertalite_tot.toLocaleString('id-ID')} KL</span>
+                        <span class="text-[10px] text-slate-400 block">S1:${log.PERTALITE_s1} / S2:${log.PERTALITE_s2}</span>
+                    </td>
+                    <td class="px-4 py-3.5">
+                        <span class="font-bold text-blue-600 dark:text-blue-500 block text-xs">${pertamax_tot.toLocaleString('id-ID')} KL</span>
+                        <span class="text-[10px] text-slate-400 block">S1:${log.PERTAMAX_s1} / S2:${log.PERTAMAX_s2}</span>
+                    </td>
+                    <td class="px-4 py-3.5">
+                        <span class="font-bold text-orange-500 block text-xs">${dexlite_tot.toLocaleString('id-ID')} KL</span>
+                        <span class="text-[10px] text-slate-400 block">S1:${log.DEXLITE_s1} / S2:${log.DEXLITE_s2}</span>
+                    </td>
+                    <td class="px-4 py-3.5">
+                        <span class="font-bold text-red-600 dark:text-red-500 block text-xs">${pertadex_tot.toLocaleString('id-ID')} KL</span>
+                        <span class="text-[10px] text-slate-400 block">S1:${log.PERTADEX_s1} / S2:${log.PERTADEX_s2}</span>
+                    </td>
+                    <td class="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white bg-slate-100/30 dark:bg-slate-900/10">
+                        <span class="text-sm block">${Math.round(total).toLocaleString('id-ID')} KL</span>
+                        <span class="text-[10px] text-slate-400 font-normal">S1:${Math.round(PRODUCTS.reduce((acc, p) => acc + (parseFloat(log[`${p}_s1`]) || 0), 0))} / S2:${Math.round(PRODUCTS.reduce((acc, p) => acc + (parseFloat(log[`${p}_s2`]) || 0), 0))}</span>
+                    </td>
+                    <td class="px-4 py-3.5 text-center">
+                        <div class="flex items-center justify-center space-x-1">
+                            <button onclick="openEditModal('${log.date}')" class="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700/50 rounded-lg text-blue-600 dark:text-blue-400 transition" title="Sesuaikan / Edit Data">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="triggerDeleteConfirmation('${log.date}')" class="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700/50 rounded-lg text-red-600 dark:text-red-400 transition" title="Hapus Data">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            const countEl = document.getElementById('total-logs-count');
+            if (countEl) countEl.innerText = distributionData.length;
+        }
+
+        function updateKPIs() {
+            if (distributionData.length === 0) return;
+            const latestEntry = distributionData[distributionData.length - 1];
+            
+            // Set dynamic date label on real-time panel
+            const dateLabel = document.getElementById('live-date-label');
+            if (dateLabel) {
+                const dateObj = new Date(latestEntry.date);
+                dateLabel.innerText = `Tanggal: ${dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+            }
+
+            const valB40 = document.getElementById('val-b40');
+            const valPertalite = document.getElementById('val-pertalite');
+            const valPertamax = document.getElementById('val-pertamax');
+            const valDexlite = document.getElementById('val-dexlite');
+            const valPertadex = document.getElementById('val-pertadex');
+
+            if (valB40) valB40.innerText = `${getProductTotal(latestEntry, 'BIOSOLARB40')} KL`;
+            if (valPertalite) valPertalite.innerText = `${getProductTotal(latestEntry, 'PERTALITE')} KL`;
+            if (valPertamax) valPertamax.innerText = `${getProductTotal(latestEntry, 'PERTAMAX')} KL`;
+            if (valDexlite) valDexlite.innerText = `${getProductTotal(latestEntry, 'DEXLITE')} KL`;
+            if (valPertadex) valPertadex.innerText = `${getProductTotal(latestEntry, 'PERTADEX')} KL`;
+
+            // Accumulations YTD
+            const ytdB40 = document.getElementById('ytd-b40');
+            const ytdPertalite = document.getElementById('ytd-pertalite');
+            const ytdPertamax = document.getElementById('ytd-pertamax');
+            const ytdDexlite = document.getElementById('ytd-dexlite');
+            const ytdPertadex = document.getElementById('ytd-pertadex');
+
+            if (ytdB40) ytdB40.innerText = `${Math.round(calculateYTDTotal('BIOSOLARB40', 'COMBINED')).toLocaleString('id-ID')} KL`;
+            if (ytdPertalite) ytdPertalite.innerText = `${Math.round(calculateYTDTotal('PERTALITE', 'COMBINED')).toLocaleString('id-ID')} KL`;
+            if (ytdPertamax) ytdPertamax.innerText = `${Math.round(calculateYTDTotal('PERTAMAX', 'COMBINED')).toLocaleString('id-ID')} KL`;
+            if (ytdDexlite) ytdDexlite.innerText = `${Math.round(calculateYTDTotal('DEXLITE', 'COMBINED')).toLocaleString('id-ID')} KL`;
+            if (ytdPertadex) ytdPertadex.innerText = `${Math.round(calculateYTDTotal('PERTADEX', 'COMBINED')).toLocaleString('id-ID')} KL`;
+
+            // Calculate progress today
+            const totalToday = Math.round(PRODUCTS.reduce((sum, p) => sum + getProductTotal(latestEntry, p), 0));
+            const targetToday = Math.round(totalToday * 1.12); 
+
+            const schedEl = document.getElementById('today-scheduled');
+            const dispEl = document.getElementById('today-dispatched');
+            const barEl = document.getElementById('dispatch-progress-bar');
+
+            if (schedEl) schedEl.innerText = `${targetToday} KL`;
+            if (dispEl) dispEl.innerText = `${totalToday} KL`;
+            
+            const pct = Math.min(Math.round((totalToday / targetToday) * 100), 100);
+            if (barEl) barEl.style.width = `${pct}%`;
+        }
+
+        // Modal Handlers
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                const innerBox = modal.querySelector('.transform');
+                if (innerBox) {
+                    innerBox.classList.remove('scale-95');
+                    innerBox.classList.add('scale-100');
+                }
+            }, 50);
+
+            if (id === 'input-modal') {
+                const today = new Date().toISOString().split('T')[0];
+                const dateInput = document.getElementById('form-date');
+                if (dateInput) dateInput.value = today;
+            }
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.add('opacity-0');
+            const innerBox = modal.querySelector('.transform');
+            if (innerBox) {
+                innerBox.classList.add('scale-95');
+                innerBox.classList.remove('scale-100');
+            }
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // Trigger Edit / Adjustment Modal with prefilled row data
+        function openEditModal(date) {
+            const log = distributionData.find(e => e.date === date);
+            if (!log) return;
+
+            const editDateInput = document.getElementById('edit-form-date');
+            if (editDateInput) editDateInput.value = log.date;
+
+            // Fill shift data
+            document.getElementById('edit-form-b40-s1').value = log.BIOSOLARB40_s1 || 0;
+            document.getElementById('edit-form-b40-s2').value = log.BIOSOLARB40_s2 || 0;
+            document.getElementById('edit-form-pertalite-s1').value = log.PERTALITE_s1 || 0;
+            document.getElementById('edit-form-pertalite-s2').value = log.PERTALITE_s2 || 0;
+            document.getElementById('edit-form-pertamax-s1').value = log.PERTAMAX_s1 || 0;
+            document.getElementById('edit-form-pertamax-s2').value = log.PERTAMAX_s2 || 0;
+            document.getElementById('edit-form-dexlite-s1').value = log.DEXLITE_s1 || 0;
+            document.getElementById('edit-form-dexlite-s2').value = log.DEXLITE_s2 || 0;
+            document.getElementById('edit-form-pertadex-s1').value = log.PERTADEX_s1 || 0;
+            document.getElementById('edit-form-pertadex-s2').value = log.PERTADEX_s2 || 0;
+
+            openModal('edit-modal');
+        }
+
+        // Trigger custom UI confirm modal for database reset
+        function triggerResetConfirmation() {
+            openModal('confirm-modal');
+        }
+
+        async function confirmResetMockData() {
+            db_sync_status_label("MENYIAPKAN DATA CLOUD...");
+            const initialData = generateMockDatabase();
+            
+            const batch = writeBatch(db);
+            initialData.forEach(entry => {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'distribution_logs', entry.date);
+                batch.set(docRef, entry);
+            });
+            
+            try {
+                await batch.commit();
+                closeModal('confirm-modal');
+                showNotification("Database awalan 1 tahun berhasil disinkronkan kembali ke Cloud!");
+            } catch (err) {
+                console.error("Gagal melakukan reset database:", err);
+                showNotification("Gagal mereset data cloud.");
+            }
+        }
+
+        function db_sync_status_label(text) {
+            const el = document.getElementById('db-sync-status');
+            if (el) el.innerText = text;
+        }
+
+        // Handle Form Input Submission (TRIGGERS COMPLETE SELF-ANALYSIS ON DATA CHANGE)
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const newEntry = {
+                date: document.getElementById('form-date').value,
+                BIOSOLARB40_s1: parseFloat(document.getElementById('form-b40-s1').value) || 0,
+                BIOSOLARB40_s2: parseFloat(document.getElementById('form-b40-s2').value) || 0,
+                PERTALITE_s1: parseFloat(document.getElementById('form-pertalite-s1').value) || 0,
+                PERTALITE_s2: parseFloat(document.getElementById('form-pertalite-s2').value) || 0,
+                PERTAMAX_s1: parseFloat(document.getElementById('form-pertamax-s1').value) || 0,
+                PERTAMAX_s2: parseFloat(document.getElementById('form-pertamax-s2').value) || 0,
+                DEXLITE_s1: parseFloat(document.getElementById('form-dexlite-s1').value) || 0,
+                DEXLITE_s2: parseFloat(document.getElementById('form-dexlite-s2').value) || 0,
+                PERTADEX_s1: parseFloat(document.getElementById('form-pertadex-s1').value) || 0,
+                PERTADEX_s2: parseFloat(document.getElementById('form-pertadex-s2').value) || 0
+            };
+
+            // Write directly to Firestore (Rule 1 compliant strict path)
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'distribution_logs', newEntry.date);
+            
+            try {
+                await setDoc(docRef, newEntry);
+                showNotification("Data Shift berhasil tersimpan aman di Cloud Firestore!");
+                closeModal('input-modal');
+                const form = document.getElementById('distribution-form');
+                if (form) form.reset();
+            } catch (err) {
+                console.error("Gagal menyimpan data:", err);
+                showNotification("Gagal menyimpan ke cloud. Coba sambungan internet Anda.");
+            }
+        }
+
+        // Handle Adjustment/Edit Submission
+        async function handleEditFormSubmit(event) {
+            event.preventDefault();
+            const date = document.getElementById('edit-form-date').value;
+
+            const updatedEntry = {
+                date: date,
+                BIOSOLARB40_s1: parseFloat(document.getElementById('edit-form-b40-s1').value) || 0,
+                BIOSOLARB40_s2: parseFloat(document.getElementById('edit-form-b40-s2').value) || 0,
+                PERTALITE_s1: parseFloat(document.getElementById('edit-form-pertalite-s1').value) || 0,
+                PERTALITE_s2: parseFloat(document.getElementById('edit-form-pertalite-s2').value) || 0,
+                PERTAMAX_s1: parseFloat(document.getElementById('edit-form-pertamax-s1').value) || 0,
+                PERTAMAX_s2: parseFloat(document.getElementById('edit-form-pertamax-s2').value) || 0,
+                DEXLITE_s1: parseFloat(document.getElementById('edit-form-dexlite-s1').value) || 0,
+                DEXLITE_s2: parseFloat(document.getElementById('edit-form-dexlite-s2').value) || 0,
+                PERTADEX_s1: parseFloat(document.getElementById('edit-form-pertadex-s1').value) || 0,
+                PERTADEX_s2: parseFloat(document.getElementById('edit-form-pertadex-s2').value) || 0
+            };
+
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'distribution_logs', date);
+            try {
+                await setDoc(docRef, updatedEntry);
+                showNotification(`Data tanggal ${date} berhasil disesuaikan!`);
+                closeModal('edit-modal');
+            } catch (err) {
+                console.error("Gagal melakukan adjustment:", err);
+                showNotification("Gagal menyimpan penyesuaian ke cloud.");
+            }
+        }
+
+        // Trigger custom UI delete confirmation
+        function triggerDeleteConfirmation(date) {
+            selectedDeleteDate = date;
+            const dateObj = new Date(date);
+            const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const displayEl = document.getElementById('delete-date-display');
+            if (displayEl) displayEl.innerText = dateStr;
+            openModal('delete-confirm-modal');
+        }
+
+        // Execute cloud document removal
+        async function confirmDeleteData() {
+            if (!selectedDeleteDate) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'distribution_logs', selectedDeleteDate);
+            try {
+                await deleteDoc(docRef);
+                showNotification(`Data penyaluran tanggal ${selectedDeleteDate} berhasil dihapus permanen!`);
+                closeModal('delete-confirm-modal');
+                selectedDeleteDate = '';
+            } catch (err) {
+                console.error("Gagal menghapus data:", err);
+                showNotification("Gagal menghapus data dari cloud.");
+            }
+        }
+
+        // EXCEL/CSV Export Utility (OPTIMIZED FOR MICROSOFT EXCEL INTERACTION WITH SHIFTS)
+        function exportToCSV() {
+            let csvContent = "\uFEFFsep=;\n";
+            csvContent += "Tanggal;BIOSOLAR B40 S1 (KL);BIOSOLAR B40 S2 (KL);BIOSOLAR B40 Total (KL);PERTALITE S1 (KL);PERTALITE S2 (KL);PERTALITE Total (KL);PERTAMAX S1 (KL);PERTAMAX S2 (KL);PERTAMAX Total (KL);DEXLITE S1 (KL);DEXLITE S2 (KL);DEXLITE Total (KL);PERTADEX S1 (KL);PERTADEX S2 (KL);PERTADEX Total (KL);TOTAL VOLUME GABUNGAN (KL)\n";
+
+            distributionData.forEach(row => {
+                const total = PRODUCTS.reduce((sum, p) => sum + getProductTotal(row, p), 0);
+                
+                const formatNum = (num) => num.toFixed(1).replace('.', ',');
+                
+                const dateParts = row.date.split('-');
+                const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+                csvContent += `${formattedDate};` +
+                    `${formatNum(row.BIOSOLARB40_s1)};${formatNum(row.BIOSOLARB40_s2)};${formatNum(getProductTotal(row, 'BIOSOLARB40'))};` +
+                    `${formatNum(row.PERTALITE_s1)};${formatNum(row.PERTALITE_s2)};${formatNum(getProductTotal(row, 'PERTALITE'))};` +
+                    `${formatNum(row.PERTAMAX_s1)};${formatNum(row.PERTAMAX_s2)};${formatNum(getProductTotal(row, 'PERTAMAX'))};` +
+                    `${formatNum(row.DEXLITE_s1)};${formatNum(row.DEXLITE_s2)};${formatNum(getProductTotal(row, 'DEXLITE'))};` +
+                    `${formatNum(row.PERTADEX_s1)};${formatNum(row.PERTADEX_s2)};${formatNum(getProductTotal(row, 'PERTADEX'))};` +
+                    `${Math.round(total)}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", "rekap_distribusi_multi_shift_it_gorontalo.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showNotification("Berkas Excel/CSV Multi-Shift berhasil diunduh secara rapi!");
+        }
+
+        function showNotification(text) {
+            const box = document.getElementById('notif-box');
+            if (!box) return;
+            const notifText = document.getElementById('notif-text');
+            if (notifText) notifText.innerText = text;
+            box.classList.remove('translate-y-20', 'opacity-0');
+            box.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                box.classList.remove('translate-y-0', 'opacity-100');
+                box.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+
+        // Live Operational Clock
+        function startLiveClock() {
+            setInterval(() => {
+                const now = new Date();
+                const str = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WITA';
+                const clockEl = document.getElementById('live-clock');
+                if (clockEl) clockEl.innerText = str;
+            }, 1000);
+        }
+
+        // Dark/Light Mode Switcher Logic (Fully Integrated inside module scope to prevent ReferenceError)
+        function initTheme() {
+            if (localStorage.getItem('theme') === 'light' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+                updateChartTheme();
+            });
+        }
+
+        // Refresh All dashboard elements
+        function updateAllDashboard() {
+            updateKPIs();
+            populateTable();
+            generateStockAdvisories(); 
+            calculateAndRenderKPITrends(); 
+            runEarlyWarningSimulation(); 
+            updateAllCharts();       
+        }
+
+        // Map operational functions to window scope to preserve HTML interactivity under ESM
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.handleFormSubmit = handleFormSubmit;
+        window.handleEditFormSubmit = handleEditFormSubmit;
+        window.switchTrendTab = switchTrendTab;
+        window.updateAllCharts = updateAllCharts;
+        window.exportToCSV = exportToCSV;
+        window.triggerResetConfirmation = triggerResetConfirmation;
+        window.confirmResetMockData = confirmResetMockData;
+        window.handleStressSlider = handleStressSlider;
+        window.openEditModal = openEditModal;
+        window.triggerDeleteConfirmation = triggerDeleteConfirmation;
+        window.confirmDeleteData = confirmDeleteData;
+
+        // Page Onload Initiation
+        initTheme();
+        startLiveClock();
+
+        // Simulate slight real-time fluctuations to give "Command Center" live feeling
+        setInterval(async () => {
+            if (distributionData.length > 0 && auth.currentUser) {
+                const lastIdx = distributionData.length - 1;
+                const lastEntry = distributionData[lastIdx];
+                const randomProd = PRODUCTS[Math.floor(Math.random() * PRODUCTS.length)];
+                const randomShift = Math.random() > 0.5 ? 's1' : 's2';
+                
+                const additionalDispatched = Math.round((Math.random() * 1.5) * 10) / 10;
+                const currentVal = parseFloat(lastEntry[`${randomProd}_${randomShift}`]) || 0;
+                
+                const updatedEntry = { ...lastEntry };
+                updatedEntry[`${randomProd}_${randomShift}`] = Math.round((currentVal + additionalDispatched) * 10) / 10;
+                
+                // Sync the real-time simulation change directly into cloud Firestore
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'distribution_logs', lastEntry.date);
+                try {
+                    await setDoc(docRef, updatedEntry);
+                } catch (e) {
+                    console.warn("Simulation cloud write skipped due to connectivity.");
+                }
+            }
+        }, 15000); // 15 seconds frequency to maintain healthy Firestore write usage
+    </script>
+</body>
+</html>
